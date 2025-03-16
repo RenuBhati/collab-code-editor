@@ -9,20 +9,12 @@ import (
 )
 
 func main() {
-	adapter := database.SQLiteAdapter{}
-	db, err := adapter.Connect()
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-	database.DB = db
-	if err := database.MigrateDB(db); err != nil {
-		log.Fatal("Failed to migrate database:", err)
-	}
+	database.InitDB()
 
 	app := fiber.New()
 	routes.Setup(app)
 
 	app.Static("/", "./views")
 
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(app.Listen(":8080"))
 }
