@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Code Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs/loader.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        #editor {
+            width: 80%;
+            height: 400px;
+            margin: 10px auto;
+            border: 1px solid #ccc;
+        }
+
+        input,
+        select,
+        button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <h2>Collaborative Code Editor</h2>
+    <div id="editor" />
+    <script>
+        let editor, currentFileId = null, currentUserId = null;
+
+        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '// Select a file or create a new one',
+                language: 'javascript',
+                theme: 'vs-dark',
+                readOnly: true
+            });
+        });
+
+    </script>
+</body>
+
+</html>
