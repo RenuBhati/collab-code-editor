@@ -10,8 +10,10 @@ import (
 )
 
 func main() {
+	if err := database.InitDB(); err != nil {
+		log.Fatal("error initializing database", err)
+	}
 
-	database.InitDB()
 	if _, err := os.Stat("./repos"); os.IsNotExist(err) {
 		os.MkdirAll("./repos", os.ModePerm)
 	}
