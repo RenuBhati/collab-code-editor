@@ -78,3 +78,50 @@ func CreateFile(req dto.CreateFileRequest) (models.File, error) {
 	return newFile, nil
 
 }
+
+func ListFiles(userID, page, limit int) ([]models.File, int64, error) {
+	var files []models.File
+	var total int64
+	offSet := (page - 1) * limit
+	/*
+			SELECT COUNT(*)
+		FROM files
+		WHERE owner_id = {userID}
+		OR id IN (
+		    SELECT file_id
+		    FROM shared_files
+		    WHERE user_id = {userID}
+		);
+	*/
+
+	err := database.DB.Model(&models.File{}).
+		Where("owner_id = ?", userID).
+		Or("id IN (?)", database.DB.Model(&models.SharedFile{}).Select("file_id").Where("user_id = ?", userID)).
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	/*
+			SELECT *
+		FROM files
+		WHERE owner_id = {userID}
+		OR id IN (
+		    SELECT file_id
+		    FROM shared_files
+		    WHERE user_id = {userID}
+		)
+		LIMIT {limit} OFFSET {offset};
+	*/
+
+	err = database.DB.Model(&models.File{}).
+		Where("owner_id = ?", userID).
+		Or("id IN (?)", database.DB.Model(&models.SharedFile{}).Select("file_id").Where("user_id = ?", userID)).
+		Offset(offSet).Limit(limit).
+		Find(&files).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return files, total, nil
+
+}

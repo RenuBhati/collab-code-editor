@@ -9,7 +9,7 @@ type File struct {
 	Content    string    `json:"content"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
-	SharedWith []uint    `json:"shared_with" gorm:"type:json"`
 	FileType   string    `json:"file_type" gorm:"not null"`
 	GitHistory []string  `json:"git_history" gorm:"type:json"`
 }
+
