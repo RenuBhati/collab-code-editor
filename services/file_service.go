@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"github.com/RenuBhati/editor/database"
 	"github.com/RenuBhati/editor/dto"
 	"github.com/RenuBhati/editor/models"
+	"gorm.io/gorm"
 )
 
 const repoBasePath = "./repos"
@@ -59,6 +61,10 @@ func CreateFile(req dto.CreateFileRequest) (models.File, error) {
 	}
 	cmd = exec.Command("git", "commit", "-m", "created file")
 	cmd.Dir = repoPath
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GIT_AUTHOR_NAME=User %d", req.OwnerID),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=user%d@example.com", req.OwnerID),
+	)
 	if err := cmd.Run(); err != nil {
 		return newFile, err
 	}
@@ -124,4 +130,42 @@ func ListFiles(userID, page, limit int) ([]models.File, int64, error) {
 
 	return files, total, nil
 
+}
+
+// GetFileByID retrieves a file by its ID.
+func GetFileByID(fileID int) (models.File, error) {
+	var file models.File
+	err := database.DB.First(&file, fileID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return file, errors.New("file not found")
+		}
+		return file, err
+	}
+	return file, nil
+}
+
+// hasAccess checks whether the user is the owner
+//
+//	or the file is shared with the user.
+func hasAccess(file models.File, userID int) bool {
+	if file.OwnerID == userID {
+		return true
+	}
+	var shared models.SharedFile
+	err := database.DB.
+		Where("file_id = ? AND user_id = ?", file.ID, userID).
+		First(&shared).Error
+	return err == nil
+}
+
+func GetFile(userID, fileID int) (models.File, error) {
+	file, err := GetFileByID(fileID)
+	if err != nil {
+		return file, err
+	}
+	if !hasAccess(file, userID) {
+		return file, errors.New("unauthorized access")
+	}
+	return file, nil
 }

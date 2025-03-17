@@ -17,7 +17,7 @@ func InitDB() error {
 		return err
 	}
 
-	if err := DB.AutoMigrate(&models.File{}); err != nil {
+	if err := DB.AutoMigrate(&models.File{}, &models.SharedFile{}); err != nil {
 		log.Println("Error during migration:", err)
 		return err
 	}

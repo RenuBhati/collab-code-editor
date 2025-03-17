@@ -17,7 +17,7 @@ func main() {
 	if _, err := os.Stat("./repos"); os.IsNotExist(err) {
 		os.MkdirAll("./repos", os.ModePerm)
 	}
-
+	database.SeedDB()
 	app := fiber.New()
 	routes.Setup(app)
 

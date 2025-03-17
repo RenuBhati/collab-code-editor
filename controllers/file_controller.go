@@ -55,3 +55,21 @@ func ListFiles(c *fiber.Ctx) error {
 		"limit": limit,
 	})
 }
+
+// GET /files/:id?user_id=...
+func GetFile(c *fiber.Ctx) error {
+	userID, err := strconv.Atoi(c.Query("user_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user_id"})
+	}
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+	file, err := services.GetFile(userID, fileID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+
+	}
+	return c.JSON(file)
+}

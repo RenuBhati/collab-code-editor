@@ -8,4 +8,5 @@ import (
 func Setup(app *fiber.App) {
 	app.Post("/files", controllers.CreateFiles)
 	app.Get("/files", controllers.ListFiles)
+	app.Get("/files/:id", controllers.GetFile)
 }
