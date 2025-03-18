@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -22,7 +23,7 @@ func CreateFile(req dto.CreateFileRequest) (models.File, error) {
 		Name:       req.Name,
 		Content:    req.Content,
 		FileType:   "owned",
-		GitHistory: []string{},
+		GitHistory: "",
 	}
 
 	if err := database.DB.Create(&newFile).Error; err != nil {
@@ -76,13 +77,17 @@ func CreateFile(req dto.CreateFileRequest) (models.File, error) {
 	}
 
 	commitHash := strings.TrimSpace(string(output))
+
 	history := []string{commitHash}
-	newFile.GitHistory = history
+	historyBytes, err := json.Marshal(history)
+	if err != nil {
+		return newFile, err
+	}
+	newFile.GitHistory = string(historyBytes)
 	if err := database.DB.Save(&newFile).Error; err != nil {
 		return newFile, err
 	}
 	return newFile, nil
-
 }
 
 func ListFiles(userID, page, limit int) ([]models.File, int64, error) {
@@ -169,3 +174,103 @@ func GetFile(userID, fileID int) (models.File, error) {
 	}
 	return file, nil
 }
+
+func UpdatedFile(fileID int, req dto.UpdateFileRequest) (models.File, error) {
+
+	file, err := GetFileByID(fileID)
+	if err != nil {
+		return file, err
+	}
+
+	if !hasAccess(file, req.UserID) {
+		return file, errors.New("unauthorized access")
+	}
+
+	file.Content = req.Content
+
+	if err := database.DB.Save(&file).Error; err != nil {
+		return file, err
+	}
+
+	repoPath := filepath.Join(repoBasePath, fmt.Sprintf("%d", file.ID))
+	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
+		return file, err
+	}
+	filePath2 := filepath.Join(repoPath, file.Name)
+	if err := os.WriteFile(filePath2, []byte(file.Content), 0644); err != nil {
+		return file, err
+	}
+
+	cmd := exec.Command("git", "add", file.Name)
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		return file, err
+	}
+	cmd = exec.Command("git", "commit", "-m", "updated file")
+	cmd.Dir = repoPath
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("GIT_AUTHOR_NAME=User %d", req.UserID),
+		fmt.Sprintf("GIT_AUTHOR_EMAIL=user%d@example.com", req.UserID),
+	)
+	if err := cmd.Run(); err != nil {
+		return file, err
+	}
+	cmd = exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return file, err
+	}
+
+	commitHash := strings.TrimSpace(string(output))
+
+	if err := appendCommitHash(&file, commitHash); err != nil {
+		return file, err
+	}
+
+	return file, nil
+}
+
+func appendCommitHash(file *models.File, newHash string) error {
+	var history []string
+	if file.GitHistory != "" {
+		if err := json.Unmarshal([]byte(file.GitHistory), &history); err != nil {
+			history = []string{}
+		}
+	}
+	history = append(history, newHash)
+	bytes, err := json.Marshal(history)
+	if err != nil {
+		return err
+	}
+	file.GitHistory = string(bytes)
+	return database.DB.Model(file).Update("git_history", file.GitHistory).Error
+}
+
+// file entry exists in DB else return error
+
+// if ownerId and userId are the same else return check in shared table entry else return error "unauthorised user"
+
+//use GetFile
+
+//file.content = req.content
+
+//update row update with new content - database.DB.Save
+
+//repoPath := filepath.Join(repoBasePath, fmt.Sprintf("%d", newFile.ID))
+
+/*filePath2 := filepath.Join(repoPath, newFile.Name)
+if err := os.WriteFile(filePath2, []byte(newFile.Content), 0644); err != nil {
+	return newFile, err
+}
+*/
+
+// git add fileName
+
+//git commit -m "updated file", set env (author just userId)
+
+// git rev-parse
+
+//newFile.GitHistory= append(newFile.Githistory,commitHAsh).....I dont need to create new hostory array here
+
+//update DB with Save

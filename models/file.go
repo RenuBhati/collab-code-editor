@@ -10,6 +10,5 @@ type File struct {
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 	FileType   string    `json:"file_type" gorm:"not null"`
-	GitHistory []string  `json:"git_history" gorm:"type:json"`
+	GitHistory string    `json:"git_history" gorm:"type:json"`
 }
-

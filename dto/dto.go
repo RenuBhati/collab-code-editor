@@ -5,3 +5,8 @@ type CreateFileRequest struct {
 	Content string `json:"content" validate:"required"`
 	OwnerID int    `json:"owner_id" validate:"required,gt=0"`
 }
+
+type UpdateFileRequest struct {
+	Content string `json:"content" validate:"required"`
+	UserID  int    `json:"user_id" validate:"required,gt=0"`
+}

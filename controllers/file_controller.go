@@ -73,3 +73,28 @@ func GetFile(c *fiber.Ctx) error {
 	}
 	return c.JSON(file)
 }
+
+func UpdateFiles(c *fiber.Ctx) error {
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+	var req dto.UpdateFileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if err := validate.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	updatedFile, err := services.UpdatedFile(fileID, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(updatedFile)
+
+	//get fileID
+	//parseBody
+	//validate
+	//call service
+	//return file
+}
