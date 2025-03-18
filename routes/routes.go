@@ -10,4 +10,5 @@ func Setup(app *fiber.App) {
 	app.Get("/files", controllers.ListFiles)
 	app.Get("/files/:id", controllers.GetFile)
 	app.Put("/files/:id", controllers.UpdateFiles)
+	app.Delete("/files/:id", controllers.DeleteFiles)
 }

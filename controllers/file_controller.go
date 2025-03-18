@@ -98,3 +98,21 @@ func UpdateFiles(c *fiber.Ctx) error {
 	//call service
 	//return file
 }
+
+// DELETE /files/:id?user_id=...
+func DeleteFiles(c *fiber.Ctx) error {
+	userID, err := strconv.Atoi(c.Query("user_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user_id"})
+	}
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+
+	if err := services.DeleteFiles(userID, fileID); err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{"message": "file deleted"})
+
+}

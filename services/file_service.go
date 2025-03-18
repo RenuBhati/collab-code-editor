@@ -229,6 +229,34 @@ func UpdatedFile(fileID int, req dto.UpdateFileRequest) (models.File, error) {
 	}
 
 	return file, nil
+
+	// file entry exists in DB else return error
+
+	// if ownerId and userId are the same else return check in shared table entry else return error "unauthorised user"
+
+	//use GetFile
+
+	//file.content = req.content
+
+	//update row update with new content - database.DB.Save
+
+	//repoPath := filepath.Join(repoBasePath, fmt.Sprintf("%d", newFile.ID))
+
+	/*filePath2 := filepath.Join(repoPath, newFile.Name)
+	  if err := os.WriteFile(filePath2, []byte(newFile.Content), 0644); err != nil {
+	  	return newFile, err
+	  }
+	*/
+
+	// git add fileName
+
+	//git commit -m "updated file", set env (author just userId)
+
+	// git rev-parse
+
+	//newFile.GitHistory= append(newFile.Githistory,commitHAsh).....I dont need to create new hostory array here
+
+	//update DB with Save
 }
 
 func appendCommitHash(file *models.File, newHash string) error {
@@ -245,32 +273,25 @@ func appendCommitHash(file *models.File, newHash string) error {
 	}
 	file.GitHistory = string(bytes)
 	return database.DB.Model(file).Update("git_history", file.GitHistory).Error
+
 }
 
-// file entry exists in DB else return error
+func DeleteFiles(userID, fileID int) error {
 
-// if ownerId and userId are the same else return check in shared table entry else return error "unauthorised user"
+	file, err := GetFileByID(fileID)
+	if err != nil {
+		return err
+	}
 
-//use GetFile
+	if file.OwnerID != userID {
+		return errors.New("unauthorized: only owner can delete file")
+	}
 
-//file.content = req.content
+	if err := database.DB.Delete(&models.File{}, fileID).Error; err != nil {
+		return err
+	}
 
-//update row update with new content - database.DB.Save
+	repoPath := filepath.Join(repoBasePath, fmt.Sprintf("%d", file.ID))
+	return os.RemoveAll(repoPath)
 
-//repoPath := filepath.Join(repoBasePath, fmt.Sprintf("%d", newFile.ID))
-
-/*filePath2 := filepath.Join(repoPath, newFile.Name)
-if err := os.WriteFile(filePath2, []byte(newFile.Content), 0644); err != nil {
-	return newFile, err
 }
-*/
-
-// git add fileName
-
-//git commit -m "updated file", set env (author just userId)
-
-// git rev-parse
-
-//newFile.GitHistory= append(newFile.Githistory,commitHAsh).....I dont need to create new hostory array here
-
-//update DB with Save
