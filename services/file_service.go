@@ -295,3 +295,38 @@ func DeleteFiles(userID, fileID int) error {
 	return os.RemoveAll(repoPath)
 
 }
+
+func ShareFile(fileID int, requesterID int, req dto.SharedWithRequest) (models.File, error) {
+	file, err := GetFileByID(fileID)
+	if err != nil {
+		return file, err
+	}
+
+	if file.OwnerID != requesterID {
+		return file, errors.New("unauthorized: only owner can share file")
+	}
+
+	var count int64
+	database.DB.Model(&models.SharedFile{}).
+		Where("file_id = ? AND user_id = ?", file.ID, req.ShareUserID).
+		Count(&count)
+	if count > 0 {
+		return file, errors.New("file already shared with this user")
+	}
+	file.FileType = "shared"
+	if err := database.DB.Save(&file).Error; err != nil {
+		return file, err
+	}
+
+	shared := models.SharedFile{
+		FileID: file.ID,
+		UserID: req.ShareUserID,
+	}
+
+	if err := database.DB.Create(&shared).Error; err != nil {
+
+		return file, err
+	}
+	return file, nil
+
+}

@@ -116,3 +116,31 @@ func DeleteFiles(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "file deleted"})
 
 }
+
+// POST /files/:id/share
+func ShareFile(c *fiber.Ctx) error {
+
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+
+	var req dto.SharedWithRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if err := validate.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	requesterID, err := strconv.Atoi(c.Query("user_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	file, err := services.ShareFile(fileID, requesterID, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(file)
+
+}
