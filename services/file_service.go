@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/RenuBhati/editor/database"
@@ -332,5 +333,42 @@ func ShareFile(fileID int, requesterID int, req dto.SharedWithRequest) (models.F
 }
 
 func GetFileHistory(fileID, userID int) ([]string, error) {
+	//git log --pretty=format:"%h - %an, %ad: %s"
+	file, err := GetFileByID(fileID)
+	if err != nil {
+		return nil, err
+	}
+	if !hasAccess(file, userID) {
+		return nil, errors.New("unauthorized")
+	}
+	repoPath := filepath.Join(repoBasePath, strconv.Itoa(int(file.ID)))
 
+	cmd := exec.Command("git", "log", "--pretty=format:%h - %an, %ad: %s")
+	cmd.Dir = repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	history := strings.Split(strings.TrimSpace(string(out)), "\n")
+	return history, nil
+}
+
+func GetGitBlame(fileID, userID int) (string, error) {
+	file, err := GetFileByID(fileID)
+	if err != nil {
+		return "", err
+	}
+	if !hasAccess(file, userID) {
+		return "", errors.New("unauthorized")
+	}
+	repoPath := filepath.Join(repoBasePath, strconv.Itoa(int(file.ID)))
+	// filePath := filepath.Join(repoPath, file.Name)
+	cmd := exec.Command("git", "blame", file.Name)
+	cmd.Dir = repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }

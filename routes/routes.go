@@ -14,4 +14,5 @@ func Setup(app *fiber.App) {
 	app.Post("/files/:id/share", controllers.ShareFile)
 	app.Post("/files/:id/save", controllers.SaveFile)
 	app.Get("/files/:id/history", controllers.FileHistory)
+	app.Get("/files/:id/blame", controllers.GitBlame)
 }

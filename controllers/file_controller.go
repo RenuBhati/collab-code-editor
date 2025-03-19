@@ -190,3 +190,19 @@ func FileHistory(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{"history": history})
 }
+
+func GitBlame(c *fiber.Ctx) error {
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+	userID, err := strconv.Atoi(c.Query("user_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+	blame, err := services.GetGitBlame(fileID, userID)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{"blame": blame})
+}
