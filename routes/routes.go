@@ -13,4 +13,5 @@ func Setup(app *fiber.App) {
 	app.Delete("/files/:id", controllers.DeleteFiles)
 	app.Post("/files/:id/share", controllers.ShareFile)
 	app.Post("/files/:id/save", controllers.SaveFile)
+	app.Get("/files/:id/history", controllers.FileHistory)
 }

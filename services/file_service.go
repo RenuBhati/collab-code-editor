@@ -330,3 +330,7 @@ func ShareFile(fileID int, requesterID int, req dto.SharedWithRequest) (models.F
 	return file, nil
 
 }
+
+func GetFileHistory(fileID, userID int) ([]string, error) {
+
+}

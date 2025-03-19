@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/RenuBhati/editor/dto"
@@ -143,4 +144,49 @@ func ShareFile(c *fiber.Ctx) error {
 	}
 	return c.JSON(file)
 
+}
+
+// POST /files/:id/save?user_id=...
+func SaveFile(c *fiber.Ctx) error {
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+	var req dto.UpdateFileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if err := validate.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	file, err := services.UpdatedFile(fileID, req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	var history []string
+	if err := json.Unmarshal([]byte(file.GitHistory), &history); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to parse git history"})
+	}
+	lastCommit := ""
+	if len(history) > 0 {
+		lastCommit = history[len(history)-1]
+	}
+	return c.JSON(fiber.Map{"commit": lastCommit})
+
+}
+
+func FileHistory(c *fiber.Ctx) error {
+	fileID, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid file id"})
+	}
+	userID, err := strconv.Atoi(c.Query("user_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+	history, err := services.GetFileHistory(fileID, userID)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{"history": history})
 }
