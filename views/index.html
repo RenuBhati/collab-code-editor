@@ -9,8 +9,11 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
             margin: 20px;
+        }
+
+        h2 {
+            text-align: center;
         }
 
         #editor {
@@ -20,26 +23,140 @@
             border: 1px solid #ccc;
         }
 
+        .control-panel {
+            width: 80%;
+            margin: 10px auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .section {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
         input,
         select,
         button {
-            padding: 10px;
+            padding: 8px;
             margin: 5px;
-            font-size: 16px;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #historyPanel,
+        #blamePanel {
+            width: 80%;
+            margin: 10px auto;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f5f5f5;
+            display: none;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px auto;
+            width: 80%;
+            text-align: center;
+            display: none;
+            border-radius: 5px;
+        }
+
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            display: block;
+        }
+
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            display: block;
         }
     </style>
-
 </head>
 
 <body>
     <h2>Collaborative Code Editor</h2>
-    <button onclick="">SAVE</button>
-    <button>HISTORY </button>
-    <button>BLAME</button>
-    <div id="editor" />
+
+    <div class="control-panel">
+        <div class="section">
+            <label>Current User:</label>
+            <input type="number" id="currentUser" placeholder="Enter User ID">
+            <button onclick="setUser()">Set User</button>
+            <span id="userStatus"></span>
+        </div>
+
+        <div class="section">
+            <input type="text" id="fileName" placeholder="Enter file name">
+            <button onclick="createFile()">Create File</button>
+
+            <select id="fileList" onchange="loadFile()">
+                <option value="">Select a file...</option>
+            </select>
+            <button onclick="deleteFile()">Delete File</button>
+
+            <!-- Pagination Controls -->
+            <div style="margin-top: 10px;">
+                <button onclick="fetchPreviousPage()">Previous</button>
+                <span id="pageIndicator">Page 1</span>
+                <button onclick="fetchNextPage()">Next</button>
+                <select id="pageSizeSelect" onchange="changePageSize()">
+                    <option value="5">5 per page</option>
+                    <option value="10" selected>10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="editor"></div>
+
+    <div class="control-panel">
+        <div class="section">
+            <button onclick="saveFile()">Save File</button>
+            <button onclick="viewHistory()">View History</button>
+            <button onclick="viewBlame()">View Blame</button>
+            <input type="number" id="shareUser" placeholder="User ID to share with">
+            <button onclick="shareFile()">Share File</button>
+        </div>
+    </div>
+
+    <div id="statusMessage" class="status"></div>
+    <div id="historyPanel"></div>
+    <div id="blamePanel"></div>
+
     <script>
         let editor, currentFileId = null, currentUserId = null;
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalPages = 1;
 
+        // Initialize Monaco Editor
         require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs' } });
         require(['vs/editor/editor.main'], function () {
             editor = monaco.editor.create(document.getElementById('editor'), {
@@ -48,8 +165,356 @@
                 theme: 'vs-dark',
                 readOnly: true
             });
+
+            // Add window resize handler for editor
+            window.addEventListener('resize', function () {
+                editor.layout();
+            });
         });
 
+        // Show status message
+        function showStatus(message, isError = false) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = isError ? 'status error' : 'status success';
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                statusElement.className = 'status';
+            }, 3000);
+        }
+
+        // Set current user and fetch their files
+        function setUser() {
+            const userIdInput = document.getElementById('currentUser');
+            const userId = userIdInput.value.trim();
+
+            if (!userId || isNaN(parseInt(userId))) {
+                showStatus('Please enter a valid User ID', true);
+                return;
+            }
+
+            currentUserId = userId;
+            document.getElementById('userStatus').textContent = `Active user: ${currentUserId}`;
+            fetchFiles();
+            showStatus(`User ${currentUserId} set successfully`);
+        }
+
+        // Fetch files for current user
+        function fetchFiles(page = 1, limit = 10) {
+            if (!currentUserId) {
+                showStatus('Please set a user ID first', true);
+                return;
+            }
+
+            fetch(`/files?user_id=${currentUserId}&page=${page}&limit=${limit}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to fetch files');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    let fileList = document.getElementById("fileList");
+                    fileList.innerHTML = `<option value="">Select a file...</option>`;
+
+                    // Check if the response has a files array (paginated response)
+                    const files = data.files || data;
+
+                    files.forEach(file => {
+                        let option = document.createElement("option");
+                        option.value = file.id;
+                        option.textContent = file.name;
+                        fileList.appendChild(option);
+                    });
+
+                    if (files.length === 0) {
+                        showStatus('No files found for this user');
+                    } else if (data.total && data.page && data.limit) {
+                        // If we have pagination information
+                        totalPages = Math.ceil(data.total / data.limit);
+                        currentPage = data.page;
+                        pageSize = data.limit;
+
+                        // Update page indicator
+                        document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
+
+                        if (totalPages > 1) {
+                            showStatus(`Showing page ${data.page} of ${totalPages} (${files.length} files)`);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching files:', error);
+                    showStatus('Failed to fetch files: ' + error.message, true);
+                });
+        }
+
+        // Pagination functions
+        function fetchPreviousPage() {
+            if (currentPage > 1) {
+                fetchFiles(currentPage - 1, pageSize);
+            } else {
+                showStatus("You are already on the first page");
+            }
+        }
+
+        function fetchNextPage() {
+            if (currentPage < totalPages) {
+                fetchFiles(currentPage + 1, pageSize);
+            } else {
+                showStatus("You are already on the last page");
+            }
+        }
+
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+            currentPage = 1; // Reset to first page when changing page size
+            fetchFiles(currentPage, pageSize);
+        }
+
+        // Create new file
+        function createFile() {
+            if (!currentUserId) {
+                showStatus('Please set a user ID first', true);
+                return;
+            }
+
+            const fileName = document.getElementById('fileName').value.trim();
+            if (!fileName) {
+                showStatus('Please enter a file name', true);
+                return;
+            }
+
+            fetch("/files", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: fileName,
+                    content: "",
+                    owner_id: parseInt(currentUserId)
+                })
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to create file');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    showStatus(`File "${fileName}" created successfully`);
+                    document.getElementById('fileName').value = '';
+                    fetchFiles();
+                })
+                .catch(error => {
+                    console.error('Error creating file:', error);
+                    showStatus('Failed to create file: ' + error.message, true);
+                });
+        }
+
+        // Load selected file
+        function loadFile() {
+            if (!currentUserId) {
+                showStatus('Please set a user ID first', true);
+                return;
+            }
+
+            currentFileId = document.getElementById("fileList").value;
+            if (!currentFileId) {
+                return;
+            }
+
+            fetch(`/files/${currentFileId}?user_id=${currentUserId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to load file');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    editor.setValue(data.content || '');
+                    const canEdit = data.owner_id === parseInt(currentUserId) || data.file_type === 'shared';
+                    editor.updateOptions({ readOnly: !canEdit });
+
+                    // Hide any open panels
+                    document.getElementById('historyPanel').style.display = 'none';
+                    document.getElementById('blamePanel').style.display = 'none';
+
+                    showStatus(`File "${data.name}" loaded successfully`);
+                })
+                .catch(error => {
+                    console.error('Error loading file:', error);
+                    showStatus('Failed to load file: ' + error.message, true);
+                });
+        }
+
+        // Save file
+        function saveFile() {
+            if (!currentUserId || !currentFileId) {
+                showStatus('Please select a file to save', true);
+                return;
+            }
+
+            const content = editor.getValue();
+
+            // Use the correct endpoint for saving file
+            fetch(`/files/${currentFileId}/save?user_id=${currentUserId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: content,
+                    user_id: parseInt(currentUserId)
+                })
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to save file');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    showStatus(`File saved successfully (Commit: ${data.commit || 'None'})`);
+                })
+                .catch(error => {
+                    console.error('Error saving file:', error);
+                    showStatus('Failed to save file: ' + error.message, true);
+                });
+        }
+
+        // Delete file
+        function deleteFile() {
+            if (!currentUserId || !currentFileId) {
+                showStatus('Please select a file to delete', true);
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this file?')) {
+                return;
+            }
+
+            fetch(`/files/${currentFileId}?user_id=${currentUserId}`, {
+                method: "DELETE"
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to delete file');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    editor.setValue('// Select a file or create a new one');
+                    editor.updateOptions({ readOnly: true });
+                    currentFileId = null;
+                    showStatus('File deleted successfully');
+                    fetchFiles();
+                })
+                .catch(error => {
+                    console.error('Error deleting file:', error);
+                    showStatus('Failed to delete file: ' + error.message, true);
+                });
+        }
+
+        // Share file with another user
+        function shareFile() {
+            if (!currentUserId || !currentFileId) {
+                showStatus('Please select a file to share', true);
+                return;
+            }
+
+            const shareUserId = document.getElementById("shareUser").value.trim();
+            if (!shareUserId || isNaN(parseInt(shareUserId))) {
+                showStatus('Please enter a valid User ID to share with', true);
+                return;
+            }
+
+            fetch(`/files/${currentFileId}/share?user_id=${currentUserId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    share_user_id: parseInt(shareUserId)
+                })
+            })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to share file');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    showStatus(`File shared successfully with User ${shareUserId}`);
+                    document.getElementById("shareUser").value = '';
+                })
+                .catch(error => {
+                    console.error('Error sharing file:', error);
+                    showStatus('Failed to share file: ' + error.message, true);
+                });
+        }
+
+        // View file history
+        function viewHistory() {
+            if (!currentUserId || !currentFileId) {
+                showStatus('Please select a file to view history', true);
+                return;
+            }
+
+            fetch(`/files/${currentFileId}/history?user_id=${currentUserId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to fetch history');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    const historyPanel = document.getElementById('historyPanel');
+                    const history = data.history || [];
+
+                    if (history.length === 0) {
+                        historyPanel.textContent = 'No history available for this file.';
+                    } else {
+                        historyPanel.textContent = history.join('\n');
+                    }
+
+                    historyPanel.style.display = 'block';
+                    document.getElementById('blamePanel').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error fetching history:', error);
+                    showStatus('Failed to fetch history: ' + error.message, true);
+                });
+        }
+
+        // View git blame
+        function viewBlame() {
+            if (!currentUserId || !currentFileId) {
+                showStatus('Please select a file to view blame information', true);
+                return;
+            }
+
+            fetch(`/files/${currentFileId}/blame?user_id=${currentUserId}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error('Failed to fetch blame information');
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    const blamePanel = document.getElementById('blamePanel');
+                    const blame = data.blame || '';
+
+                    if (!blame) {
+                        blamePanel.textContent = 'No blame information available for this file.';
+                    } else {
+                        blamePanel.textContent = blame;
+                    }
+
+                    blamePanel.style.display = 'block';
+                    document.getElementById('historyPanel').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error fetching blame information:', error);
+                    showStatus('Failed to fetch blame information: ' + error.message, true);
+                });
+        }
     </script>
 </body>
 
