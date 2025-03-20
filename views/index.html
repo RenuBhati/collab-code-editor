@@ -58,7 +58,7 @@
         }
 
         button:hover {
-            background-color: #45a049;
+            background-color: #5645a0;
         }
 
         #historyPanel,
@@ -131,18 +131,20 @@
                 </select>
             </div>
         </div>
-        <div class="control-panel">
-            <div class="section">
-                <button onclick="saveFile()">Save File</button>
-                <button onclick="viewHistory()">View History</button>
-                <button onclick="viewBlame()">View Blame</button>
-                <input type="number" id="shareUser" placeholder="User ID to share with">
-                <button onclick="shareFile()">Share File</button>
-            </div>
-        </div>
+
     </div>
 
     <div id="editor"></div>
+
+    <div class="control-panel">
+        <div class="section">
+            <button onclick="saveFile()">Save File</button>
+            <button onclick="viewHistory()">View History</button>
+            <button onclick="viewBlame()">View Blame</button>
+            <input type="number" id="shareUser" placeholder="User ID to share with">
+            <button onclick="shareFile()">Share File</button>
+        </div>
+    </div>
 
 
     <div id="statusMessage" class="status"></div>
