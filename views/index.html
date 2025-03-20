@@ -119,7 +119,6 @@
             </select>
             <button onclick="deleteFile()">Delete File</button>
 
-            <!-- Pagination Controls -->
             <div style="margin-top: 10px;">
                 <button onclick="fetchPreviousPage()">Previous</button>
                 <span id="pageIndicator">Page 1</span>
@@ -132,19 +131,19 @@
                 </select>
             </div>
         </div>
+        <div class="control-panel">
+            <div class="section">
+                <button onclick="saveFile()">Save File</button>
+                <button onclick="viewHistory()">View History</button>
+                <button onclick="viewBlame()">View Blame</button>
+                <input type="number" id="shareUser" placeholder="User ID to share with">
+                <button onclick="shareFile()">Share File</button>
+            </div>
+        </div>
     </div>
 
     <div id="editor"></div>
 
-    <div class="control-panel">
-        <div class="section">
-            <button onclick="saveFile()">Save File</button>
-            <button onclick="viewHistory()">View History</button>
-            <button onclick="viewBlame()">View Blame</button>
-            <input type="number" id="shareUser" placeholder="User ID to share with">
-            <button onclick="shareFile()">Share File</button>
-        </div>
-    </div>
 
     <div id="statusMessage" class="status"></div>
     <div id="historyPanel"></div>
@@ -156,7 +155,6 @@
         let pageSize = 10;
         let totalPages = 1;
 
-        // Initialize Monaco Editor
         require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs' } });
         require(['vs/editor/editor.main'], function () {
             editor = monaco.editor.create(document.getElementById('editor'), {
@@ -166,25 +164,22 @@
                 readOnly: true
             });
 
-            // Add window resize handler for editor
             window.addEventListener('resize', function () {
                 editor.layout();
             });
         });
 
-        // Show status message
         function showStatus(message, isError = false) {
             const statusElement = document.getElementById('statusMessage');
             statusElement.textContent = message;
             statusElement.className = isError ? 'status error' : 'status success';
 
-            // Auto-hide after 3 seconds
             setTimeout(() => {
                 statusElement.className = 'status';
             }, 3000);
         }
 
-        // Set current user and fetch their files
+
         function setUser() {
             const userIdInput = document.getElementById('currentUser');
             const userId = userIdInput.value.trim();
@@ -200,7 +195,6 @@
             showStatus(`User ${currentUserId} set successfully`);
         }
 
-        // Fetch files for current user
         function fetchFiles(page = 1, limit = 10) {
             if (!currentUserId) {
                 showStatus('Please set a user ID first', true);
@@ -218,7 +212,6 @@
                     let fileList = document.getElementById("fileList");
                     fileList.innerHTML = `<option value="">Select a file...</option>`;
 
-                    // Check if the response has a files array (paginated response)
                     const files = data.files || data;
 
                     files.forEach(file => {
@@ -231,12 +224,10 @@
                     if (files.length === 0) {
                         showStatus('No files found for this user');
                     } else if (data.total && data.page && data.limit) {
-                        // If we have pagination information
                         totalPages = Math.ceil(data.total / data.limit);
                         currentPage = data.page;
                         pageSize = data.limit;
 
-                        // Update page indicator
                         document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
 
                         if (totalPages > 1) {
@@ -250,7 +241,6 @@
                 });
         }
 
-        // Pagination functions
         function fetchPreviousPage() {
             if (currentPage > 1) {
                 fetchFiles(currentPage - 1, pageSize);
@@ -269,11 +259,10 @@
 
         function changePageSize() {
             pageSize = parseInt(document.getElementById('pageSizeSelect').value);
-            currentPage = 1; // Reset to first page when changing page size
+            currentPage = 1;
             fetchFiles(currentPage, pageSize);
         }
 
-        // Create new file
         function createFile() {
             if (!currentUserId) {
                 showStatus('Please set a user ID first', true);
@@ -291,7 +280,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     name: fileName,
-                    content: "",
+                    content: " ",
                     owner_id: parseInt(currentUserId)
                 })
             })
@@ -312,7 +301,6 @@
                 });
         }
 
-        // Load selected file
         function loadFile() {
             if (!currentUserId) {
                 showStatus('Please set a user ID first', true);
@@ -336,7 +324,6 @@
                     const canEdit = data.owner_id === parseInt(currentUserId) || data.file_type === 'shared';
                     editor.updateOptions({ readOnly: !canEdit });
 
-                    // Hide any open panels
                     document.getElementById('historyPanel').style.display = 'none';
                     document.getElementById('blamePanel').style.display = 'none';
 
@@ -348,7 +335,6 @@
                 });
         }
 
-        // Save file
         function saveFile() {
             if (!currentUserId || !currentFileId) {
                 showStatus('Please select a file to save', true);
@@ -357,7 +343,6 @@
 
             const content = editor.getValue();
 
-            // Use the correct endpoint for saving file
             fetch(`/files/${currentFileId}/save?user_id=${currentUserId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -381,7 +366,6 @@
                 });
         }
 
-        // Delete file
         function deleteFile() {
             if (!currentUserId || !currentFileId) {
                 showStatus('Please select a file to delete', true);
@@ -397,7 +381,8 @@
             })
                 .then(res => {
                     if (!res.ok) {
-                        throw new Error('Failed to delete file');
+                        console.log(res)
+                        throw new Error('Failed to delete file ' + res.statusText);
                     }
                     return res.json();
                 })
@@ -414,7 +399,6 @@
                 });
         }
 
-        // Share file with another user
         function shareFile() {
             if (!currentUserId || !currentFileId) {
                 showStatus('Please select a file to share', true);
@@ -450,7 +434,6 @@
                 });
         }
 
-        // View file history
         function viewHistory() {
             if (!currentUserId || !currentFileId) {
                 showStatus('Please select a file to view history', true);
@@ -483,7 +466,6 @@
                 });
         }
 
-        // View git blame
         function viewBlame() {
             if (!currentUserId || !currentFileId) {
                 showStatus('Please select a file to view blame information', true);
