@@ -27,3 +27,5 @@ go.work.sum
 *.db
 
 repos/
+
+services/repos
