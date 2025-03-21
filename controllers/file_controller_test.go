@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -28,8 +29,8 @@ func setupTestDB(t *testing.T) {
 }
 
 func cleanupTestDB() {
-	database.DB.Exec("DROP TABLE files")
-	database.DB.Exec("DROP TABLE shared_files")
+	os.Remove("test.db")
+	os.RemoveAll("repos")
 }
 
 func TestCreateFileController(t *testing.T) {
